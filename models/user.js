@@ -7,6 +7,7 @@ const userSchema = new Schema({
     firstName: String,
     lastName: String,
     gender: String,
+    displayPicture: String,
     preferredTopics: [String],
 }, { timestamps: true });
 
