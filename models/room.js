@@ -6,7 +6,8 @@ const userSchema = new Schema({
     topic: [String],
     participants: [String],
     description: String,
-    administrator: String
+    administrator: String,
+    groupDisplayPictureLink: String
 
 }, { timestamps: true });
 
