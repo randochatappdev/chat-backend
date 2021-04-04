@@ -66,25 +66,12 @@ const auth = function (req, res, next) {
 let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
 
-// Login route
-app.post('/login', (req, res) => {
-
-    // Authenticate user
-
-    // USE REFRESH TOKENS
-    //!!!!!!!!!!!!!!!!!!!!!
-    let token = jwt.sign({ sub: req.body.username }, process.env.JWT_SECRET, { expiresIn: 3600 });
-
-    authenticate(req.body, res, token);
-
-})
-
-
+// API endpoint protection
 app.use('/api', auth, (req, res, next) => {
     next();
 })
 
-// Authorization test
+// Test route for fetching all users
 app.get('/api/users', (req, res) => {
     User.findOne({}, (err, docs) => {
         res.json(docs);
@@ -92,42 +79,6 @@ app.get('/api/users', (req, res) => {
 
 })
 
-
-
-app.get('/users', (req, res) => {
-    User.find({}, (err, users) => {
-        res.send(users);
-    })
-
-});
-
-app.get('/topics', (req, res) => {
-    Topic.find({}, (err, topics) => {
-        res.send(topics);
-    })
-});
-
-app.post('/topic', (res, req) => {
-    let err;
-    Topic.create({ name: res.body.name, description: res.body.description }, (err, small) => {
-        if (err) {
-            console.log(err)
-        } else {
-            console.log("Success");
-        }
-    });
-
-}
-)
-
-
-
-
-
-
-
-
-// Auth tests
 
 // Sign-up route
 app.post('/register', (req, res) => {
@@ -159,7 +110,7 @@ app.post('/register', (req, res) => {
                 // Create user if alias does not exist in the database yet
                 User.create(accountDetails, (err, small) => {
                     if (err) return res.json({ message: "Your credentials have not been saved. Please try again.", status: err })
-                    res.json({ message: "Your account has been successfully created." });
+                    res.json({ message: "Your account has been successfully created. Please login." });
                 })
             })
 
@@ -174,7 +125,18 @@ app.post('/register', (req, res) => {
 });
 
 
+// Login route
+app.post('/login', (req, res) => {
 
+    // Authenticate user
+
+    // USE REFRESH TOKENS
+    //!!!!!!!!!!!!!!!!!!!!!
+    let token = jwt.sign({ sub: req.body.username }, process.env.JWT_SECRET, { expiresIn: 3600 });
+
+    authenticate(req.body, res, token);
+
+})
 
 
 
@@ -200,16 +162,7 @@ function authenticate(requestBody, res, token) {
             });
 
         }
-        // EXPIRE TOKEN
-        // !!!!!!!!!!!!!!
-
     }
-
-
-
-
-
-
     )
 }
 
