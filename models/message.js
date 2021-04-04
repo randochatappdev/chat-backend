@@ -2,9 +2,18 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const userSchema = new Schema({
-    sender: String,
-    room: String,
-    content: {},
+    sender: {
+        type: String,
+        required: true
+    },
+    room: {
+        type: String,
+        required: true
+    },
+    content: {
+        type: Object,
+        required: true
+    }
 
 }, { timestamps: true });
 
