@@ -129,7 +129,7 @@ function authenticate(requestBody, res, token) {
 
         // Execute if user does not exist
         if (user === null) {
-            res.json({ status: "Incorrect credentials" });
+            res.status(401).send("Incorrect credentials");
 
 
             // Execute if the credentials match an existing user
@@ -140,7 +140,8 @@ function authenticate(requestBody, res, token) {
                 if (result) {
                     return res.json({ jwt: "Bearer " + token, status: "Success" });
                 }
-                res.json({ error: "Incorrect credentials" });
+                res.status(401).send("Incorrect credentials");
+
             });
 
         }
