@@ -25,6 +25,47 @@ Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad
     console.log("Saved");
 });*/
 
+
+
+// Middleware
+const auth = function (req, res, next) {
+
+    try {
+        if (req.headers.authorization.slice(0, 6) !== "Bearer") {
+            console.log("Error")
+            req.user = null;
+            return res.status(401).send("Unauthorized");
+
+        }
+    } catch (err) {
+        console.log("Noeee")
+        req.user = null;
+        return res.status(401).send("Unauthorized");
+
+
+    }
+
+
+    let jwtoken = req.headers.authorization.slice(7);
+
+    jwt.verify(jwtoken, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return res.status(401).send("Incorrect credentials");
+
+
+
+        User.findOne({ username: decoded.sub }, (err, docs) => {
+            if (err) return res.status(401).send("Incorrect credentials");
+            req.user = docs;
+            next();
+
+
+        })
+    });
+
+
+
+}
+
 let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
 
@@ -154,8 +195,22 @@ function authenticate(requestBody, res, token) {
 
 
 
+
     )
 }
+
+
+
+// Authorization test
+app.use('/api/', auth, (req, res) => {
+    User.findOne({}, (err, docs) => {
+        res.json(docs);
+    })
+
+})
+
+
+
 
 
 
