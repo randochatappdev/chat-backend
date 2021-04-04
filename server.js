@@ -27,7 +27,7 @@ Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad
 
 
 
-// Middleware
+// Use authorization middleware with routes that need to be protected
 const auth = function (req, res, next) {
 
     try {
@@ -61,13 +61,38 @@ const auth = function (req, res, next) {
 
         })
     });
-
-
-
 }
 
 let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
+
+// Login route
+app.post('/login', (req, res) => {
+
+    // Authenticate user
+
+    // USE REFRESH TOKENS
+    //!!!!!!!!!!!!!!!!!!!!!
+    let token = jwt.sign({ sub: req.body.username }, process.env.JWT_SECRET, { expiresIn: 3600 });
+
+    authenticate(req.body, res, token);
+
+})
+
+
+app.use('/api', auth, (req, res, next) => {
+    next();
+})
+
+// Authorization test
+app.get('/api/users', (req, res) => {
+    User.findOne({}, (err, docs) => {
+        res.json(docs);
+    })
+
+})
+
+
 
 app.get('/users', (req, res) => {
     User.find({}, (err, users) => {
@@ -150,18 +175,7 @@ app.post('/register', (req, res) => {
 
 
 
-// Login route
-app.post('/login', (req, res) => {
 
-    // Authenticate user
-
-    let token = jwt.sign({ sub: req.body.username }, process.env.JWT_SECRET, { expiresIn: 30 });
-
-    // Use bcrypt to encrypt passwords
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    authenticate(req.body, res, token);
-
-})
 
 
 function authenticate(requestBody, res, token) {
@@ -201,13 +215,6 @@ function authenticate(requestBody, res, token) {
 
 
 
-// Authorization test
-app.use('/api/', auth, (req, res) => {
-    User.findOne({}, (err, docs) => {
-        res.json(docs);
-    })
-
-})
 
 
 
