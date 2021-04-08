@@ -65,6 +65,7 @@ const auth = function (req, res, next) {
 
 let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
+let Room = require('./models/room.js').Room;
 
 // API endpoint protection
 app.use('/api', auth, (req, res, next) => {
@@ -77,6 +78,18 @@ app.get('/api/users', (req, res) => {
         res.json(docs);
     })
 
+})
+
+app.get('/api/rooms', (req, res) => {
+    Room.find({}, (err, docs) => {
+        res.json(docs);
+    })
+})
+
+app.get('/api/user', (req, res) => {
+    User.find({ alias: req.user.alias }, (err, docs) => {
+        res.json(docs);
+    })
 })
 
 
@@ -105,8 +118,9 @@ app.post('/register', (req, res) => {
                 preferredTopics: req.body.preferredTopics
             }
             // Check if alias already exists 
-            User.findOne({ alias: req.body.alias }, (err, small) => {
-                if (!err) return res.json({ error: "AliasAlreadyExists" });
+            User.findOne({ alias: req.body.alias }, (err, docs) => {
+
+                if (docs) return res.json({ error: "AliasAlreadyExists" });
                 // Create user if alias does not exist in the database yet
                 User.create(accountDetails, (err, small) => {
                     if (err) return res.json({ message: "Your credentials have not been saved. Please try again.", status: err })
@@ -137,6 +151,8 @@ app.post('/login', (req, res) => {
     authenticate(req.body, res, token);
 
 })
+
+// To logout - clear the tokens on the client side
 
 
 
