@@ -19,9 +19,7 @@ mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
     .catch(error => console.log(error))
     
     
-mongoose.connection.on('Disconnected', () => {
-    console.log('Mongo connection is disconnected')
-      })
+
  //For testing only 
 // let Message = require('./models/message.js').Message;
 // Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad8ff6', content: { type: 'text', body: "Don't worry much if the side effects are mild" } }, (err, small) => {
