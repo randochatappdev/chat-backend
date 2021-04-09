@@ -17,13 +17,17 @@ app.listen('4000', () => {
 mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
     then(() => { console.log("Connected") })
     .catch(error => console.log(error))
-
-/* For testing only 
-let Message = require('./models/message.js').Message;
-Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad8ff6', content: { type: 'text', body: "Don't worry much if the side effects are mild" } }, (err, small) => {
-    if (err) return console.log(err)
-    console.log("Saved");
-});*/
+    
+    
+mongoose.connection.on('Disconnected', () => {
+    console.log('Mongo connection is disconnected')
+      })
+ //For testing only 
+// let Message = require('./models/message.js').Message;
+// Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad8ff6', content: { type: 'text', body: "Don't worry much if the side effects are mild" } }, (err, small) => {
+//     if (err) return console.log(err)
+//     console.log("Saved");
+// });
 
 
 
@@ -66,6 +70,7 @@ const auth = function (req, res, next) {
 let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
 let Room = require('./models/room.js').Room;
+let Message = require('./models/message.js').Message;
 
 // API endpoint protection
 app.use('/api', auth, (req, res, next) => {
@@ -78,6 +83,37 @@ app.get('/api/users', (req, res) => {
         res.json(docs);
     })
 
+})
+
+
+// Route to retrieve topics from database
+app.get('/topics', (req,res) => {
+    Topic.find({}, (err, topics) => {
+        res.send(topics);
+    })
+})
+
+
+
+// Routes for retrieving rooms
+app.get('/retrieveRoom', (req,res) => {
+    Room.find({}, (err, retrieveRoom) => {
+        res.send(retrieveRoom);
+    })
+})
+
+// Route for adding topics preferences for a user
+app.post('/createTopics', (res,req) => {
+    Topic.create({ 
+        name: res.body.name,
+        description: res.body.description }, (err, small) => {
+            if (err) {
+                console.log(err);
+            }
+            else {
+                console.log("Success");
+            }
+        });
 })
 
 app.get('/api/rooms', (req, res) => {
