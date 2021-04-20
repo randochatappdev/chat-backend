@@ -69,6 +69,7 @@ let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
 let Room = require('./models/room.js').Room;
 let Message = require('./models/message.js').Message;
+const message = require('./models/message.js');
 
 // API endpoint protection
 app.use('/api', auth, (req, res, next) => {
@@ -91,6 +92,29 @@ app.get('/topics', (req,res) => {
     })
 })
 
+// Route for retrieving account information
+app.get('/api/retrieveInfo', (req, res) => {
+        res.json(req.user)
+     })
+
+
+// Route for retrieving messages from a certain room
+app.get('/api/retrieveMessage', (req, res) => {  
+    Message.find({ room: req.body.room }, (err, retrieveMessage) => {
+    res.send(retrieveMessage);
+    })
+
+})
+
+
+
+const small = new Message({ size : 'small'});
+small.save(function (err) {
+    if (err) return handleError(err);
+});
+
+
+
 
 
 // Routes for retrieving rooms
@@ -100,7 +124,7 @@ app.get('/retrieveRoom', (req,res) => {
     })
 })
 
-// Route for adding topics preferences for a user
+// Route for creating a new topic and saving the accompanying details to the database
 app.post('/createTopics', (res,req) => {
     Topic.create({ 
         name: res.body.name,
@@ -114,6 +138,25 @@ app.post('/createTopics', (res,req) => {
         });
 })
 
+// Route for creating new room and saving the accompanying details to the db
+app.post('/createRoom', (res,req) => {
+    Room.create({
+        name: req.body.name,
+        topic: req.body.topic,
+        participants: req.body.participants,
+        description: req.body.description,
+        administrator: req.user._id,
+        groupDisplayPictureLink: res.body.groupDisplayPictureLink }, (err, small) => {
+            if (err) {
+                console.log(err);
+            }
+        else {
+            console.log("Creating new Room Succesful!");
+          }
+        })
+    })
+
+
 app.get('/api/rooms', (req, res) => {
     Room.find({}, (err, docs) => {
         res.json(docs);
@@ -126,6 +169,12 @@ app.get('/api/user', (req, res) => {
     })
 })
 
+
+app.get('/api/user/topics', (req, res) => {
+    User.find({ _id: req.user._id }, (err,docs) => {
+        res.json(docs.preferredTopics);
+    })
+})
 
 // Sign-up route
 app.post('/register', (req, res) => {
@@ -215,11 +264,6 @@ function authenticate(requestBody, res, token) {
     }
     )
 }
-
-
-
-
-
 
 
 
