@@ -11,8 +11,9 @@ const userSchema = new Schema({
         required: true
     },
     content: {
-        type: Object,
-        required: true
+
+        messageType: String,
+        body: String,
     }
 
 }, { timestamps: true });
