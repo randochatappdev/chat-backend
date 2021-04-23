@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const multer  = require('multer')
+const upload = multer({ dest: 'uploads/' })
 
 
 const app = express();
@@ -17,13 +19,15 @@ app.listen('4000', () => {
 mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
     then(() => { console.log("Connected") })
     .catch(error => console.log(error))
+    
+    
 
-/* For testing only 
-let Message = require('./models/message.js').Message;
-Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad8ff6', content: { type: 'text', body: "Don't worry much if the side effects are mild" } }, (err, small) => {
-    if (err) return console.log(err)
-    console.log("Saved");
-});*/
+ //For testing only 
+// let Message = require('./models/message.js').Message;
+// Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad8ff6', content: { type: 'text', body: "Don't worry much if the side effects are mild" } }, (err, small) => {
+//     if (err) return console.log(err)
+//     console.log("Saved");
+// });
 
 
 
@@ -66,6 +70,8 @@ const auth = function (req, res, next) {
 let User = require('./models/user.js').User;
 let Topic = require('./models/topic.js').Topic;
 let Room = require('./models/room.js').Room;
+let Message = require('./models/message.js').Message;
+const message = require('./models/message.js');
 
 // API endpoint protection
 app.use('/api', auth, (req, res, next) => {
@@ -80,18 +86,120 @@ app.get('/api/users', (req, res) => {
 
 })
 
+
+// Route to retrieve topics from database
+app.get('/topics', (req,res) => {
+    Topic.find({}, (err, topics) => {
+        res.send(topics);
+    })
+})
+
+// Route for retrieving account information
+app.get('/api/retrieveInfo', (req, res) => {
+        res.json(req.user)
+     })
+
+
+// Route for retrieving messages from a certain room
+app.get('/api/retrieveMessage', (req, res) => {  
+    Message.find({ room: req.body.room }, (err, retrieveMessage) => {
+    res.send(retrieveMessage);
+    })
+
+})
+
+
+// Route for saving new messages to database
+app.post('/api/message', (req, res) => {
+    let newMessage = new Message({ sender: req.body.sender, room: req.body.room, content: { messageType: req.body.content.messageType, body: req.body.content.body } })
+    newMessage.save((err, docs) => {
+        if (!err)
+            return res.json({ docs })
+        res.json(err)
+        console.log(err)
+    });
+})
+
+
+// Routes for retrieving rooms
+app.get('/retrieveRoom', (req,res) => {
+    Room.find({}, (err, retrieveRoom) => {
+        res.send(retrieveRoom);
+    })
+})
+
+// Route for creating a new topic and saving the accompanying details to the database
+app.post('/createTopics', (res,req) => {
+    Topic.create({ 
+        name: res.body.name,
+        description: res.body.description }, (err, small) => {
+            if (err) {
+                console.log(err);
+            }
+            else {
+                console.log("Success");
+            }
+        });
+})
+
+// Route for creating new room and saving the accompanying details to the db
+app.post('/createRoom', (res,req) => {
+    Room.create({
+        name: req.body.name,
+        topic: req.body.topic,
+        participants: req.body.participants,
+        description: req.body.description,
+        administrator: req.user._id,
+        groupDisplayPictureLink: res.body.groupDisplayPictureLink }, (err, small) => {
+        if (err) {
+            console.log(err);
+            }
+        else {
+            console.log("Creating New Room Succesful!");
+          }
+        })
+    })
+
+
+// Route for retrieving rooms linked to the logged in user
 app.get('/api/rooms', (req, res) => {
     Room.find({}, (err, docs) => {
         res.json(docs);
     })
 })
 
+// Route for retrieving account information
 app.get('/api/user', (req, res) => {
     User.find({ alias: req.user.alias }, (err, docs) => {
         res.json(docs);
     })
 })
 
+// Route for adding topic preferences for a user
+app.patch('/api/user/topics', (req, res) => {
+    User.find({ _id: req.user._id }, (err,docs) => {
+        res.json(docs.preferredTopics);
+    })
+})
+
+// Route for displaying rooms by topic preferences of the uesr
+app.get('/api/user/room', (req, res) => {
+    Room.find({ topic: req.body.topic } , (err, docs) => {
+        res.json(docs);
+    })
+})
+
+// Route for modifying account information
+app.patch('/api/user/', (req, res) => {
+    console.log(req.body)
+User.findOneAndDelete({_id: req.user._id}, {preferredTopics: req.body.preferredTopics}, (err, docs) => {
+    if (!err) {
+        return res.json(docs)
+
+    }
+    res.json(err)
+})
+})
 
 // Sign-up route
 app.post('/register', (req, res) => {
@@ -185,8 +293,5 @@ function authenticate(requestBody, res, token) {
 
 
 
-
-
-
-
+// Backend logic for image uploads
 
