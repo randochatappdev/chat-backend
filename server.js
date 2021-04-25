@@ -192,7 +192,7 @@ app.get('/api/user/room', (req, res) => {
 // Route for modifying account information
 app.patch('/api/user/', (req, res) => {
     console.log(req.body)
-User.findOneAndDelete({_id: req.user._id}, {preferredTopics: req.body.preferredTopics}, (err, docs) => {
+User.findOneAndUpdate({_id: req.user._id}, {preferredTopics: req.body.preferredTopics}, (err, docs) => {
     if (!err) {
         return res.json(docs)
 
