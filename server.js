@@ -3,14 +3,30 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const multer  = require('multer')
-const upload = multer({ dest: 'uploads/' })
-
+const AWS = require('aws-sdk');
+const fs = require('fs');
+const multer = require('multer');
+const { uuid } = require('uuidv4');
 
 const app = express();
+const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ID,
+    secretAccessKey: process.env.AWS_SECRET
+})
 const dbUri = process.env.DB_URI
 console.log(dbUri);
 app.use(express.json());
+
+const storage = multer.memoryStorage({
+    destination: function(req, file, callback) {
+        callback(null, '')
+    }
+})
+
+const upload = multer({storage}).single('image')
+
+
+
 
 app.listen('4000', () => {
     console.log("Listening");
@@ -28,8 +44,6 @@ mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
 //     if (err) return console.log(err)
 //     console.log("Saved");
 // });
-
-
 
 // Use authorization middleware with routes that need to be protected
 const auth = function (req, res, next) {
@@ -192,7 +206,7 @@ app.get('/api/user/room', (req, res) => {
 // Route for modifying account information
 app.patch('/api/user/', (req, res) => {
     console.log(req.body)
-User.findOneAndDelete({_id: req.user._id}, {preferredTopics: req.body.preferredTopics}, (err, docs) => {
+User.findOneAndUpdate({_id: req.user._id}, {preferredTopics: req.body.preferredTopics}, (err, docs) => {
     if (!err) {
         return res.json(docs)
 
@@ -295,3 +309,27 @@ function authenticate(requestBody, res, token) {
 
 // Backend logic for image uploads
 
+app.post('/upload', upload, (req, res) => {
+
+    let myFile = req.file.originalname.split(".")
+    const fileType = myFile[myFile.length - 1]
+
+    // console.log(req.file)
+    // res.send({
+    //     message: 'Image upload is succesful!'
+    // })
+
+    const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `${uuid()}.${fileType}`,
+        Body: req.file.buffer
+    }
+
+    s3.upload(params, (err, data) => {
+        if(err){
+            res.status(500).send(err)
+        }
+
+        res.status(200).send(data)
+    })
+})
