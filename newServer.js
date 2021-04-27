@@ -172,8 +172,10 @@ app.post('/api/room', (req, res) => {
 
 // Route for retrieving rooms linked to the logged in user
 app.get('/api/rooms', (req, res) => {
-    Room.find({}, (err, docs) => {
-        res.json(docs);
+    Room.find({ participants: req.user._id }, (err, docs) => {
+        if (!err)
+            return res.json(docs);
+        return res.json(err);
     })
 })
 

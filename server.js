@@ -1,28 +1,145 @@
 const dotenv = require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
+
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const multer  = require('multer')
+const multer = require('multer')
 const upload = multer({ dest: 'uploads/' })
+const uniqid = require('uniqid');
+
 
 
 const app = express();
+app.use(cors());
+
+// Socket.io initialization
+const httpServer = require("http").createServer(app);
+const io = require("socket.io")(httpServer, {
+    cors: {
+        origin: "http://localhost:3000",
+    }
+});
+httpServer.listen(4000, () => {
+    console.log("Listening")
+});
+
+// Checks connection
+io.use((socket, next) => {
+    const sessionToken = socket.handshake.auth.sessionToken;
+    const alias = socket.handshake.auth.alias;
+    let sessionData = {};
+    console.log("token", sessionToken)
+    if (sessionToken) {
+        jwt.verify(sessionToken, process.env.JWT_SECRET, (err, decoded) => {
+            if (err) console.log(err)
+
+
+
+            User.findOne({ alias: decoded.sub }, (err, docs) => {
+                if (err) return console.log("Error")
+                console.log("docs", docs)
+
+                if (docs) {
+                    socket.sessionToken = sessionToken;
+                    console.log("id", docs.socket_userID)
+
+                    socket.userID = docs.socket_userID;
+
+                    console.log("alias", docs.alias)
+                    console.log()
+                    socket.alias = docs.alias;
+                    console.log("session", docs)
+                    return next();
+                }
+
+            })
+        });
+
+
+
+
+    }
+
+
+    next();
+});
+
+io.on("connection", (socket) => {
+    // Send session details to client
+    socket.emit("session", {
+        sessionToken: socket.sessionToken,
+        userID: socket.userID,
+    })
+    const users = [];
+    for (let [userID, socket] of io.of("/").sockets) {
+        console.log(socket.alias)
+        users.push({
+            userID: userID,
+            alias: socket.alias,
+        });
+    }
+
+    socket.emit("users", users);
+
+
+
+
+
+
+    // notify existing users
+    socket.broadcast.emit("user connected", {
+        userID: socket.id,
+        alias: socket.alias,
+        messages: []
+    });
+
+    socket.on("private message", ({ content, to }) => {
+        socket.to(to).emit("private message", {
+            content,
+            from: socket.id,
+
+        });
+    });
+
+    socket.on("room message", ({ content, to }) => {
+        socket.join(to);
+        socket.to(to).emit("room message", { content, from: socket.userID })
+        console.log(content)
+    });
+
+    socket.on("join-rooms", (newRooms) => {
+        newRooms.forEach((room) => {
+            socket.join(room._id);
+            console.log("Nice", room._id)
+        })
+    })
+
+
+});
+
+
+
+
+
+
+
+
+
 const dbUri = process.env.DB_URI
 console.log(dbUri);
 app.use(express.json());
 
-app.listen('4000', () => {
-    console.log("Listening");
-});
 
+mongoose.set('useFindAndModify', false);
 mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
     then(() => { console.log("Connected") })
     .catch(error => console.log(error))
-    
-    
 
- //For testing only 
+
+
+//For testing only 
 // let Message = require('./models/message.js').Message;
 // Message.create({ sender: '60586431ebc27002f993b846', room: '6058797a3799dd0481ad8ff6', content: { type: 'text', body: "Don't worry much if the side effects are mild" } }, (err, small) => {
 //     if (err) return console.log(err)
@@ -57,7 +174,7 @@ const auth = function (req, res, next) {
 
 
 
-        User.findOne({ username: decoded.sub }, (err, docs) => {
+        User.findOne({ alias: decoded.sub }, (err, docs) => {
             if (err) return res.status(401).send("Incorrect credentials");
             req.user = docs;
             next();
@@ -88,7 +205,7 @@ app.get('/api/users', (req, res) => {
 
 
 // Route to retrieve topics from database
-app.get('/topics', (req,res) => {
+app.get('/topics', (req, res) => {
     Topic.find({}, (err, topics) => {
         res.send(topics);
     })
@@ -96,14 +213,14 @@ app.get('/topics', (req,res) => {
 
 // Route for retrieving account information
 app.get('/api/retrieveInfo', (req, res) => {
-        res.json(req.user)
-     })
+    res.json(req.user)
+})
 
 
 // Route for retrieving messages from a certain room
-app.get('/api/retrieveMessage', (req, res) => {  
+app.get('/api/retrieveMessage', (req, res) => {
     Message.find({ room: req.body.room }, (err, retrieveMessage) => {
-    res.send(retrieveMessage);
+        res.send(retrieveMessage);
     })
 
 })
@@ -122,49 +239,55 @@ app.post('/api/message', (req, res) => {
 
 
 // Routes for retrieving rooms
-app.get('/retrieveRoom', (req,res) => {
+app.get('/retrieveRoom', (req, res) => {
     Room.find({}, (err, retrieveRoom) => {
         res.send(retrieveRoom);
     })
 })
 
 // Route for creating a new topic and saving the accompanying details to the database
-app.post('/createTopics', (res,req) => {
-    Topic.create({ 
+app.post('/createTopics', (res, req) => {
+    Topic.create({
         name: res.body.name,
-        description: res.body.description }, (err, small) => {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                console.log("Success");
-            }
-        });
+        description: res.body.description
+    }, (err, small) => {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log("Success");
+        }
+    });
 })
 
 // Route for creating new room and saving the accompanying details to the db
-app.post('/createRoom', (res,req) => {
+app.post('/api/room', (req, res) => {
     Room.create({
         name: req.body.name,
         topic: req.body.topic,
         participants: req.body.participants,
         description: req.body.description,
         administrator: req.user._id,
-        groupDisplayPictureLink: res.body.groupDisplayPictureLink }, (err, small) => {
+        groupDisplayPictureLink: req.body.groupDisplayPictureLink
+    }, (err, small) => {
         if (err) {
             console.log(err);
-            }
+        }
         else {
+            res.json(small);
             console.log("Creating New Room Succesful!");
-          }
-        })
+        }
     })
+})
 
 
 // Route for retrieving rooms linked to the logged in user
 app.get('/api/rooms', (req, res) => {
-    Room.find({}, (err, docs) => {
-        res.json(docs);
+    console.log(req.user)
+    Room.find({ participants: req.user._id }, (err, docs) => {
+        if (!err)
+            return res.json(docs);
+        return res.json(err);
     })
 })
 
@@ -177,14 +300,14 @@ app.get('/api/user', (req, res) => {
 
 // Route for adding topic preferences for a user
 app.patch('/api/user/topics', (req, res) => {
-    User.find({ _id: req.user._id }, (err,docs) => {
+    User.find({ _id: req.user._id }, (err, docs) => {
         res.json(docs.preferredTopics);
     })
 })
 
 // Route for displaying rooms by topic preferences of the uesr
 app.get('/api/user/room', (req, res) => {
-    Room.find({ topic: req.body.topic } , (err, docs) => {
+    Room.find({ topic: req.body.topic }, (err, docs) => {
         res.json(docs);
     })
 })
@@ -192,13 +315,25 @@ app.get('/api/user/room', (req, res) => {
 // Route for modifying account information
 app.patch('/api/user/', (req, res) => {
     console.log(req.body)
-User.findOneAndDelete({_id: req.user._id}, {preferredTopics: req.body.preferredTopics}, (err, docs) => {
-    if (!err) {
-        return res.json(docs)
+    User.findOneAndUpdate({ _id: req.user._id }, { preferredTopics: req.body.preferredTopics }, (err, docs) => {
+        if (!err) {
+            return res.json(docs)
 
-    }
-    res.json(err)
+        }
+        res.json(err)
+    })
 })
+
+// Route for adding new users to a room
+app.patch('/api/room', (req, res) => {
+    Room.findOneAndUpdate({ _id: req.body._id }, { $push: { participants: req.user._id } }, (err, docs) => {
+        if (!err) {
+            return res.json(docs);
+        }
+
+        res.json(err);
+
+    })
 })
 
 // Sign-up route
@@ -223,7 +358,7 @@ app.post('/register', (req, res) => {
                 lastName: req.body.lastName,
                 gender: req.body.gender,
                 displayPicture: req.body.displayPicture,
-                preferredTopics: req.body.preferredTopics
+                socket_userID: uniqid(),
             }
             // Check if alias already exists 
             User.findOne({ alias: req.body.alias }, (err, docs) => {
@@ -254,7 +389,7 @@ app.post('/login', (req, res) => {
 
     // USE REFRESH TOKENS
     //!!!!!!!!!!!!!!!!!!!!!
-    let token = jwt.sign({ sub: req.body.username }, process.env.JWT_SECRET, { expiresIn: 3600 });
+    let token = jwt.sign({ sub: req.body.alias }, process.env.JWT_SECRET, { expiresIn: 3600 });
 
     authenticate(req.body, res, token);
 
@@ -263,13 +398,14 @@ app.post('/login', (req, res) => {
 // To logout - clear the tokens on the client side
 
 
-
+// Authenticate function
 function authenticate(requestBody, res, token) {
     User.findOne({ alias: requestBody.alias }, (err, user) => {
-
+        console.log(requestBody.alias, requestBody.password)
 
         // Execute if user does not exist
         if (user === null) {
+            console.log("sad")
             res.status(401).send("Incorrect credentials");
 
 
@@ -279,7 +415,8 @@ function authenticate(requestBody, res, token) {
             // Execute if the password is incorrect
             bcrypt.compare(requestBody.password, user.password, function (err, result) {
                 if (result) {
-                    return res.json({ jwt: "Bearer " + token, status: "Success" });
+
+                    return res.json({ jwt: "Bearer " + token, status: "Success", alias: requestBody.alias });
                 }
                 res.status(401).send("Incorrect credentials");
 
@@ -294,4 +431,3 @@ function authenticate(requestBody, res, token) {
 
 
 // Backend logic for image uploads
-
