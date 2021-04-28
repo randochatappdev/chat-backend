@@ -103,8 +103,7 @@ io.on("connection", (socket) => {
         });
     });
 
-    socket.on("room message", ({ content, to }) => {
-        socket.join(to);
+    socket.on("room message send", ({ content, to }) => {
         socket.to(to).emit("room message", { content, from: socket.userID })
         console.log(content)
     });
