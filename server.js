@@ -33,7 +33,7 @@ io.use((socket, next) => {
     console.log("token", sessionToken)
     if (sessionToken) {
         jwt.verify(sessionToken, process.env.JWT_SECRET, (err, decoded) => {
-            if (err) console.log(err)
+            if (err) return next();
 
 
 
@@ -235,6 +235,8 @@ app.post('/api/message', (req, res) => {
         console.log(err)
     });
 })
+
+
 
 
 // Routes for retrieving rooms
