@@ -27,6 +27,7 @@ const userSchema = new Schema({
         required: true
     },
     preferredTopics: [String],
+    socket_userID: String
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

@@ -5,164 +5,21 @@ const cors = require('cors');
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const uniqid = require('uniqid');
+const multer = require('multer')
+const upload = multer({ dest: 'uploads/' })
 
 
 
 const app = express();
 app.use(cors());
 
-// Socket.io initialization
-const httpServer = require("http").createServer(app);
-const io = require("socket.io")(httpServer, {
-    cors: {
-        origin: "http://localhost:3000",
-    }
-});
-httpServer.listen(4000, () => {
-    console.log("Listening")
-});
-
-// Checks connection
-io.use((socket, next) => {
-    const sessionToken = socket.handshake.auth.sessionToken;
-    const alias = socket.handshake.auth.alias;
-    let sessionData = {};
-    console.log("token", sessionToken)
-    if (sessionToken) {
-        jwt.verify(sessionToken, process.env.JWT_SECRET, (err, decoded) => {
-            if (err) return next();
-
-
-
-            User.findOne({ alias: decoded.sub }, (err, docs) => {
-                if (err) return console.log("Error")
-                console.log("docs", docs)
-
-                if (docs) {
-                    socket.sessionToken = sessionToken;
-                    console.log("id", docs.socket_userID)
-
-                    socket.userID = docs.socket_userID;
-
-                    console.log("alias", docs.alias)
-                    console.log()
-                    socket.alias = docs.alias;
-                    console.log("session", docs)
-                    return next();
-                }
-
-            })
-        });
-
-
-
-
-    }
-
-
-    next();
-});
-
-io.on("connection", (socket) => {
-    // Send session details to client
-    socket.emit("session", {
-        sessionToken: socket.sessionToken,
-        userID: socket.userID,
-    })
-    const users = [];
-    for (let [userID, socket] of io.of("/").sockets) {
-        console.log(socket.alias)
-        users.push({
-            userID: userID,
-            alias: socket.alias,
-        });
-    }
-
-    socket.emit("users", users);
-
-
-
-
-
-
-    // notify existing users
-    socket.broadcast.emit("user connected", {
-        userID: socket.id,
-        alias: socket.alias,
-        messages: []
-    });
-
-    socket.on("private message", ({ content, to }) => {
-        socket.to(to).emit("private message", {
-            content,
-            from: socket.id,
-
-
-        });
-    });
-
-    socket.on("room message", ({ content, to }) => {
-        socket.to(to).emit("room message", { content, from: socket.alias, room: to })
-        console.log(content, socket.alias)
-
-        let newMessage = new Message({ sender: socket.alias, room: to, content: { messageType: "text", body: content } })
-        newMessage.save((err, docs) => {
-            //if (!err)
-            //return console.log(docs)
-
-        });
-
-        console.log('Great')
-        console.log('---------------------------------------')
-
-
-
-
-    });
-
-    socket.on("join-rooms", (newRooms) => {
-        newRooms.forEach((room) => {
-            socket.join(room._id);
-            console.log("Nice", room._id)
-        })
-    })
-
-
-});
-
-
-
-
-
-
-
-
-
-const AWS = require('aws-sdk');
-const fs = require('fs');
-const multer = require('multer');
-const { uuid } = require('uuidv4');
-
-const s3 = new AWS.S3({
-    accessKeyId: process.env.AWS_ID,
-    secretAccessKey: process.env.AWS_SECRET
-})
 const dbUri = process.env.DB_URI
 console.log(dbUri);
 app.use(express.json());
 
-const storage = multer.memoryStorage({
-    destination: function (req, file, callback) {
-        callback(null, '')
-    }
-})
-
-const upload = multer({ storage }).single('image')
-
-
-
-
+app.listen('4000', () => {
+    console.log("Listening");
+});
 
 mongoose.set('useFindAndModify', false);
 mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
@@ -177,6 +34,8 @@ mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
 //     if (err) return console.log(err)
 //     console.log("Saved");
 // });
+
+
 
 // Use authorization middleware with routes that need to be protected
 const auth = function (req, res, next) {
@@ -204,7 +63,7 @@ const auth = function (req, res, next) {
 
 
 
-        User.findOne({ alias: decoded.sub }, (err, docs) => {
+        User.findOne({ username: decoded.sub }, (err, docs) => {
             if (err) return res.status(401).send("Incorrect credentials");
             req.user = docs;
             next();
@@ -248,14 +107,9 @@ app.get('/api/retrieveInfo', (req, res) => {
 
 
 // Route for retrieving messages from a certain room
-app.get('/api/retrieveMessage/:id', (req, res) => {
-    Message.find({ room: req.params.id }, (err, messages) => {
-        if (!err) {
-            return res.send(messages);
-
-        }
-        return console.log(err)
-
+app.get('/api/retrieveMessage', (req, res) => {
+    Message.find({ room: req.body.room }, (err, retrieveMessage) => {
+        res.send(retrieveMessage);
     })
 
 })
@@ -271,8 +125,6 @@ app.post('/api/message', (req, res) => {
         console.log(err)
     });
 })
-
-
 
 
 // Routes for retrieving rooms
@@ -320,7 +172,6 @@ app.post('/api/room', (req, res) => {
 
 // Route for retrieving rooms linked to the logged in user
 app.get('/api/rooms', (req, res) => {
-    console.log(req.user)
     Room.find({ participants: req.user._id }, (err, docs) => {
         if (!err)
             return res.json(docs);
@@ -330,14 +181,10 @@ app.get('/api/rooms', (req, res) => {
 
 // Route for retrieving account information
 app.get('/api/user', (req, res) => {
-    User.find({ _id: req.user._id }, (err, docs) => {
+    User.find({ alias: req.user.alias }, (err, docs) => {
         res.json(docs);
-
     })
 })
-
-// Route for retrieving topic information
-
 
 // Route for adding topic preferences for a user
 app.patch('/api/user/topics', (req, res) => {
@@ -399,7 +246,7 @@ app.post('/register', (req, res) => {
                 lastName: req.body.lastName,
                 gender: req.body.gender,
                 displayPicture: req.body.displayPicture,
-                socket_userID: uniqid(),
+                preferredTopics: req.body.preferredTopics
             }
             // Check if alias already exists 
             User.findOne({ alias: req.body.alias }, (err, docs) => {
@@ -430,7 +277,7 @@ app.post('/login', (req, res) => {
 
     // USE REFRESH TOKENS
     //!!!!!!!!!!!!!!!!!!!!!
-    let token = jwt.sign({ sub: req.body.alias }, process.env.JWT_SECRET, { expiresIn: 3600 });
+    let token = jwt.sign({ sub: req.body.username }, process.env.JWT_SECRET, { expiresIn: 3600 });
 
     authenticate(req.body, res, token);
 
@@ -439,7 +286,7 @@ app.post('/login', (req, res) => {
 // To logout - clear the tokens on the client side
 
 
-// Authenticate function
+
 function authenticate(requestBody, res, token) {
     User.findOne({ alias: requestBody.alias }, (err, user) => {
         console.log(requestBody.alias, requestBody.password)
@@ -456,8 +303,7 @@ function authenticate(requestBody, res, token) {
             // Execute if the password is incorrect
             bcrypt.compare(requestBody.password, user.password, function (err, result) {
                 if (result) {
-
-                    return res.json({ jwt: "Bearer " + token, status: "Success", alias: requestBody.alias });
+                    return res.json({ jwt: "Bearer " + token, status: "Success" });
                 }
                 res.status(401).send("Incorrect credentials");
 
@@ -472,29 +318,3 @@ function authenticate(requestBody, res, token) {
 
 
 // Backend logic for image uploads
-// Backend logic for image uploads
-
-app.post('/upload', upload, (req, res) => {
-
-    let myFile = req.file.originalname.split(".")
-    const fileType = myFile[myFile.length - 1]
-
-    // console.log(req.file)
-    // res.send({
-    //     message: 'Image upload is succesful!'
-    // })
-
-    const params = {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: `${uuid()}.${fileType}`,
-        Body: req.file.buffer
-    }
-
-    s3.upload(params, (err, data) => {
-        if (err) {
-            res.status(500).send(err)
-        }
-
-        res.status(200).send(data)
-    })
-})
