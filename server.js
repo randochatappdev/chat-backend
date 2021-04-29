@@ -100,12 +100,27 @@ io.on("connection", (socket) => {
             content,
             from: socket.id,
 
+
         });
     });
 
-    socket.on("room message send", ({ content, to }) => {
-        socket.to(to).emit("room message", { content, from: socket.userID })
-        console.log(content)
+    socket.on("room message", ({ content, to }) => {
+        socket.to(to).emit("room message", { content, from: socket.alias, room: to })
+        console.log(content, socket.alias)
+
+        let newMessage = new Message({ sender: socket.alias, room: to, content: { messageType: "text", body: content } })
+        newMessage.save((err, docs) => {
+            //if (!err)
+            //return console.log(docs)
+
+        });
+
+        console.log('Great')
+        console.log('---------------------------------------')
+
+
+
+
     });
 
     socket.on("join-rooms", (newRooms) => {
@@ -217,9 +232,14 @@ app.get('/api/retrieveInfo', (req, res) => {
 
 
 // Route for retrieving messages from a certain room
-app.get('/api/retrieveMessage', (req, res) => {
-    Message.find({ room: req.body.room }, (err, retrieveMessage) => {
-        res.send(retrieveMessage);
+app.get('/api/retrieveMessage/:id', (req, res) => {
+    Message.find({ room: req.params.id }, (err, messages) => {
+        if (!err) {
+            return res.send(messages);
+
+        }
+        return console.log(err)
+
     })
 
 })
@@ -294,10 +314,14 @@ app.get('/api/rooms', (req, res) => {
 
 // Route for retrieving account information
 app.get('/api/user', (req, res) => {
-    User.find({ alias: req.user.alias }, (err, docs) => {
+    User.find({ _id: req.user._id }, (err, docs) => {
         res.json(docs);
+
     })
 })
+
+// Route for retrieving topic information
+
 
 // Route for adding topic preferences for a user
 app.patch('/api/user/topics', (req, res) => {
