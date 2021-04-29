@@ -5,8 +5,6 @@ const cors = require('cors');
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const multer = require('multer')
-const upload = multer({ dest: 'uploads/' })
 const uniqid = require('uniqid');
 
 
@@ -141,9 +139,29 @@ io.on("connection", (socket) => {
 
 
 
+const AWS = require('aws-sdk');
+const fs = require('fs');
+const multer = require('multer');
+const { uuid } = require('uuidv4');
+
+const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ID,
+    secretAccessKey: process.env.AWS_SECRET
+})
 const dbUri = process.env.DB_URI
 console.log(dbUri);
 app.use(express.json());
+
+const storage = multer.memoryStorage({
+    destination: function (req, file, callback) {
+        callback(null, '')
+    }
+})
+
+const upload = multer({ storage }).single('image')
+
+
+
 
 
 mongoose.set('useFindAndModify', false);
@@ -159,8 +177,6 @@ mongoose.connect(dbUri, { useNewUrlParser: true, useUnifiedTopology: true }).
 //     if (err) return console.log(err)
 //     console.log("Saved");
 // });
-
-
 
 // Use authorization middleware with routes that need to be protected
 const auth = function (req, res, next) {
@@ -456,3 +472,29 @@ function authenticate(requestBody, res, token) {
 
 
 // Backend logic for image uploads
+// Backend logic for image uploads
+
+app.post('/upload', upload, (req, res) => {
+
+    let myFile = req.file.originalname.split(".")
+    const fileType = myFile[myFile.length - 1]
+
+    // console.log(req.file)
+    // res.send({
+    //     message: 'Image upload is succesful!'
+    // })
+
+    const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `${uuid()}.${fileType}`,
+        Body: req.file.buffer
+    }
+
+    s3.upload(params, (err, data) => {
+        if (err) {
+            res.status(500).send(err)
+        }
+
+        res.status(200).send(data)
+    })
+})
