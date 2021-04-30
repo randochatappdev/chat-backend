@@ -341,8 +341,17 @@ app.get('/api/user', (req, res) => {
 
 // Route for adding topic preferences for a user
 app.patch('/api/user/topics', (req, res) => {
-    User.find({ _id: req.user._id }, (err, docs) => {
-        res.json(docs.preferredTopics);
+    User.findOne({ _id: req.user._id }, (err, docs) => {
+        docs.preferredTopics = req.body.preferredTopics;
+        try {
+            docs.save((err, docs) => {
+                if (!err) return res.json({ status: "Success" })
+                return res.json({ status: "Error" })
+            })
+
+        } catch (error) {
+            res.json({ status: "Error" })
+        }
     })
 })
 
