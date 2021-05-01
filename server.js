@@ -25,7 +25,7 @@ httpServer.listen(4000, () => {
 
 // Checks connection
 io.use((socket, next) => {
-    const sessionToken = socket.handshake.auth.sessionToken;
+    const sessionToken = socket.handshake.auth.session;
     const alias = socket.handshake.auth.alias;
     let sessionData = {};
     console.log("token", sessionToken)
