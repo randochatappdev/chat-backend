@@ -283,16 +283,17 @@ app.get('/retrieveRoom', (req, res) => {
 })
 
 // Route for creating a new topic and saving the accompanying details to the database
-app.post('/createTopics', (res, req) => {
+app.post('/api/topic', (req, res) => {
     Topic.create({
-        name: res.body.name,
-        description: res.body.description
+        name: req.body.name,
+        description: req.body.description
     }, (err, small) => {
         if (err) {
             console.log(err);
+            res.json({ error: err, status: "Error" })
         }
         else {
-            console.log("Success");
+            res.json({ status: "Success" })
         }
     });
 })
@@ -308,10 +309,10 @@ app.post('/api/room', (req, res) => {
         groupDisplayPictureLink: req.body.groupDisplayPictureLink
     }, (err, small) => {
         if (err) {
-            console.log(err);
+            res.json({ error: err, status: "Error" })
         }
         else {
-            res.json(small);
+            res.json({ docs: small, status: "Success" });
             console.log("Creating New Room Succesful!");
         }
     })
@@ -378,10 +379,11 @@ app.patch('/api/user/', (req, res) => {
 app.patch('/api/room', (req, res) => {
     Room.findOneAndUpdate({ _id: req.body._id }, { $push: { participants: req.user._id } }, (err, docs) => {
         if (!err) {
-            return res.json(docs);
+            console.log(err)
+            return res.json({ docs: docs, status: "Success" });
         }
-
-        res.json(err);
+        console.log(err)
+        res.json({ err: err, status: "Failed" });
 
     })
 })
@@ -416,8 +418,8 @@ app.post('/register', (req, res) => {
                 if (docs) return res.json({ error: "AliasAlreadyExists" });
                 // Create user if alias does not exist in the database yet
                 User.create(accountDetails, (err, small) => {
-                    if (err) return res.json({ message: "Your credentials have not been saved. Please try again.", status: err })
-                    res.json({ message: "Your account has been successfully created. Please login." });
+                    if (err) return res.json({ message: "Your credentials have not been saved. Please try again.", status: "Error" })
+                    res.json({ message: "Your account has been successfully created. Please login.", status: "Success" });
                 })
             })
 
