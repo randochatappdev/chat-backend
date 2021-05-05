@@ -21,5 +21,8 @@ Enter <span>npm start</span> on your console.
   <li>5. gender </li>
   <li>6. displayPicture </li
   <li>7. preferredTopics </li>
+ 
 
 </ul>
+
+<a href="">View user manual</a>
