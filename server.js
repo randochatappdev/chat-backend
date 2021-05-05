@@ -36,7 +36,7 @@ io.use((socket, next) => {
 
 
             User.findOne({ alias: decoded.sub }, (err, docs) => {
-                if (err) return console.log("Error")
+                if (err) return next()
                 console.log("docs", docs)
 
                 if (docs) {
@@ -49,7 +49,7 @@ io.use((socket, next) => {
                     console.log()
                     socket.alias = docs.alias;
                     console.log("session", docs)
-                    return next();
+                    next();
                 }
 
             })
@@ -61,7 +61,7 @@ io.use((socket, next) => {
     }
 
 
-    next();
+
 });
 
 io.on("connection", (socket) => {
@@ -78,13 +78,6 @@ io.on("connection", (socket) => {
             alias: socket.alias,
         });
     }
-
-    socket.emit("users", users);
-
-
-
-
-
 
     // notify existing users
     socket.broadcast.emit("user connected", {
