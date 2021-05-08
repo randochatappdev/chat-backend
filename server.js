@@ -2,6 +2,7 @@ const dotenv = require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const port = process.env.PORT || 4000;
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -16,10 +17,10 @@ app.use(cors());
 const httpServer = require("http").createServer(app);
 const io = require("socket.io")(httpServer, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: "*",
     }
 });
-httpServer.listen(4000, () => {
+httpServer.listen(port, () => {
     console.log("Listening")
 });
 
